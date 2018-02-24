@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>test</title>
+	<style>
+		body{
+			width: 75%;
+			margin: 20px auto;
+			text-align: center;
+		}
+		section{
+			margin: 25px auto;
+		}
+		.hidden{
+			display: none;
+		}
+		table{
+			width: 100%;
+		}
+		td{
+			width: 50%;
+			padding: 5px 15px;
+		}
+		td:first-child{
+			text-align: right;
+			width: 40%;
+		}
+		td:last-child{
+			text-align: left;
+		}
+
+	</style>
+</head>
+<body>
+	<h1>私密信息获取</h1>
+	<section id="user-input">
+		<label for="password">
+			<span>请输入密码：</span>
+			<input type="text" id="password">
+		</label>
+		<button id="confirm">确认</button>
+	</section>
+	<section id="secret">
+		<p class="error-info hidden">
+			您输入的密码有误，请重新输入。
+		</p>
+		<table class="secret-info hidden">
+			<tr class="name">
+				<td>姓名：</td>
+				<td></td>
+			</tr>
+			<tr class="birthday">
+				<td>生日：</td>
+				<td></td>
+			</tr>
+			<tr class="phone">
+				<td>电话：</td>
+				<td></td>
+			</tr>
+			<tr class="qq">
+				<td>QQ：</td>
+				<td></td>
+			</tr>
+			<tr class="weixin">
+				<td>微信：</td>
+				<td></td>
+			</tr>
+			<tr class="email">
+				<td>邮箱：</td>
+				<td></td>
+			</tr>
+		</table>
+	</section>
+	<script src="aes_2.js"></script>　
+	<!--   一篇使用该库的文章：http://www.jb51.net/article/89647.htm -->
+	<!-- 　//引入的js文件在该链接中：https://github.com/hellobajie/AES-of-JavaScript -->
+	<!-- 
+		注意点：
+		加密时用一组明文和密钥生成的密文不是唯一的，但是这些密文都能用密钥还原成明文;
+		解密时如果密钥不对，浏览器可能会抛出错误，因此实际代码中可以将其放在try-catch块中
+	 -->
+	<script type="text/javascript">
+		(function(){
+			var doc = document,
+				errorInfo = doc.getElementsByClassName('error-info')[0],
+				secretTable = doc.getElementsByClassName('secret-info')[0],
+				input = doc.getElementById('password'),
+				confirmBtn = doc.getElementById('confirm'),
+				nodes = {
+					errorInfo: errorInfo,
+					secretTable: secretTable,
+					input: input,
+					confirmBtn: confirmBtn,
+					tbody: secretTable.tBodies[0],
+					name: secretTable.rows[0].cells[1],
+					birthday: secretTable.rows[1].cells[1],
+					phone: secretTable.rows[2].cells[1],
+					qq: secretTable.rows[3].cells[1],
+					weixin: secretTable.rows[4].cells[1],
+					email: secretTable.rows[5].cells[1]
+				};
+
+			var testStr = 'dfadfdn9el33;ccnfa33kldfd,;;;dfdacckpod;daceldfl',
+				// 用于检验用户密码正确性的测试字符串明文
+				testStrEncoded = '',
+				// 用于检验用户密码正确性的测试字符串密文
+				infoEncoded = '';
+				// 私密信息密文
+
+			(function () {
+				// 这部分是私密信息明文和密钥
+				// 本段代码会在控制台输出testStrEncoded和infoEncoded
+				// 请将输出结果复制到上面两个变量的声明初始化的地方
+				// 然后删除本段代码
+				var private = {
+					personalInfo: {
+						name: 'Tom',
+						birthday: '19940204',
+						phone: '18772344986',
+						qq: '183433322',
+						weixin: 'bigTom',
+						email: 'tom@163.com'
+					},
+					password: 'Tom'
+				};
+				testStrEncoded = encode(testStr, private.password);
+				infoEncoded = encode(JSON.stringify(private.personalInfo), private.password);
+			})();
+
+			init();
+
+			function init() {
+				// 响应用户输入事件绑定
+				confirmBtn.onclick = judge;
+				input.onkeyup = function (event) {
+					if (event.keyCode === 13) {
+						judge();
+					}
+				}
+			}
+			function judge() {
+				// 判断用户输入的密码正确性
+				// 并给出合适响应（报错 or 输出私密信息）
+				var inputPassword = trim(nodes.input.value);
+				var info;
+				try {
+				// 在用户输入密码错误的情况下，有时aes_2.js代码库会报错
+					if (decode(testStrEncoded, inputPassword) === testStr) {
+						var info = JSON.parse(decode(infoEncoded, inputPassword));
+						showSecret(info);
+					} else {
+						showError()
+					}
+				} catch (e) {
+					showError();
+				}
+			}
+
+			// 加密和解密函数
+			function encode(plainText, password) {
+				return CryptoJS.AES.encrypt(plainText, password).toString();
+			}
+			function decode(encodedStr, password) {
+				return CryptoJS.AES.decrypt(encodedStr, password).toString(CryptoJS.enc.Utf8);
+			}
+
+
+			function showSecret(info) {
+				// 显示私密信息
+				var key;
+				for (key in info) {
+					if (key in nodes) {
+						nodes[key].innerHTML = info[key];
+					}
+				}
+				addClass(errorInfo, 'hidden');
+				removeClass(secretTable, 'hidden');
+			}
+			function showError() {
+				// 显示密码错误报错
+				addClass(secretTable, 'hidden');
+				removeClass(errorInfo, 'hidden');
+			}
+
+			// 几个工具函数
+			function trim(str) {
+				// 去除字符串首尾空格
+				// 采用了函数延迟加载提高性能（只有第一次调用会判断原生trim是否存在）
+				if (!!str.trim) {
+					trim = function (str) {
+						return str.trim(str);
+					};
+				} else {
+					trim = function (str) {
+						return str.replace(/^\s+/, '').replace(/\s+$/, '');
+					}
+				}
+				return trim(str);
+			}
+			function removeClass(elem, cls) {
+				var clsStr = trim(String(cls)),
+					resStr = elem.className;
+				while (resStr.indexOf(clsStr) > -1) {
+					resStr = resStr.replace(clsStr, '');
+				}
+				elem.className = trim(resStr.replace(/\s+/g, ' '));
+			}
+			function hasClass(elem, cls) {
+				return elem.className.indexOf(cls) !== -1;
+			}
+			function addClass(elem, cls) {
+				if (!hasClass(elem, cls)) {
+					elem.className += ' ' + cls;
+				}
+			}
+		})();
+	</script>
+</body>
+</html>
